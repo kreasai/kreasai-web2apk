@@ -1,0 +1,85 @@
+name: Android Build (Web2APK)
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        required: true
+        type: string
+      source_type:
+        required: true
+        type: string
+      source_url:
+        required: false
+        type: string
+      source_zip_path:
+        required: false
+        type: string
+      app_name:
+        required: true
+        type: string
+      package_name:
+        required: true
+        type: string
+      version_name:
+        required: true
+        type: string
+      version_code:
+        required: true
+        type: string
+      permissions:
+        required: false
+        type: string
+      features:
+        required: false
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify running
+        env:
+          WEB2APK_CALLBACK_URL: ${{ secrets.WEB2APK_CALLBACK_URL }}
+          WEB2APK_CALLBACK_TOKEN: ${{ secrets.WEB2APK_CALLBACK_TOKEN }}
+          JOB_ID: ${{ github.event.inputs.job_id }}
+        run: |
+          if [ -n "$WEB2APK_CALLBACK_URL" ] && [ -n "$WEB2APK_CALLBACK_TOKEN" ]; then
+            curl -sS -X POST "$WEB2APK_CALLBACK_URL" \
+              -H "Content-Type: application/json" \
+              -H "X-WEB2APK-CALLBACK-TOKEN: $WEB2APK_CALLBACK_TOKEN" \
+              -d "{\"job_id\":$JOB_ID,\"status\":\"running\",\"progress\":35,\"message\":\"Builder workflow started\"}" >/dev/null
+          fi
+
+      - name: Placeholder build step
+        run: |
+          echo "Implement Kotlin WebView template build here"
+          sleep 6
+
+      - name: Notify success
+        if: success()
+        env:
+          WEB2APK_CALLBACK_URL: ${{ secrets.WEB2APK_CALLBACK_URL }}
+          WEB2APK_CALLBACK_TOKEN: ${{ secrets.WEB2APK_CALLBACK_TOKEN }}
+          JOB_ID: ${{ github.event.inputs.job_id }}
+        run: |
+          if [ -n "$WEB2APK_CALLBACK_URL" ] && [ -n "$WEB2APK_CALLBACK_TOKEN" ]; then
+            curl -sS -X POST "$WEB2APK_CALLBACK_URL" \
+              -H "Content-Type: application/json" \
+              -H "X-WEB2APK-CALLBACK-TOKEN: $WEB2APK_CALLBACK_TOKEN" \
+              -d "{\"job_id\":$JOB_ID,\"status\":\"success\",\"progress\":100,\"message\":\"Builder workflow completed\"}" >/dev/null
+          fi
+
+      - name: Notify failure
+        if: failure()
+        env:
+          WEB2APK_CALLBACK_URL: ${{ secrets.WEB2APK_CALLBACK_URL }}
+          WEB2APK_CALLBACK_TOKEN: ${{ secrets.WEB2APK_CALLBACK_TOKEN }}
+          JOB_ID: ${{ github.event.inputs.job_id }}
+        run: |
+          if [ -n "$WEB2APK_CALLBACK_URL" ] && [ -n "$WEB2APK_CALLBACK_TOKEN" ]; then
+            curl -sS -X POST "$WEB2APK_CALLBACK_URL" \
+              -H "Content-Type: application/json" \
+              -H "X-WEB2APK-CALLBACK-TOKEN: $WEB2APK_CALLBACK_TOKEN" \
+              -d "{\"job_id\":$JOB_ID,\"status\":\"failed\",\"progress\":100,\"error_message\":\"Builder workflow failed\"}" >/dev/null
+          fi
