@@ -125,7 +125,13 @@ jobs:
           print(f"WEB2APK_ENABLE_BACK_NAVIGATION={as_bool(features.get('enable_back_navigation'), True)}")
           print(f"WEB2APK_ENABLE_SPLASH={as_bool(features.get('enable_splash'), False)}")
           print(f"WEB2APK_SPLASH_BG={str(features.get('splash_background_color') or '#111827')}")
-          print(f"WEB2APK_SPLASH_LOGO={str(features.get('splash_logo_url') or '')}")
+          
+          # Logic: If splash logo URL is empty but we have an icon path, fallback to icon path
+          splash_logo = str(features.get('splash_logo_url') or '')
+          if not splash_logo and os.environ.get('ICON_PATH'):
+              splash_logo = f"{os.environ.get('WEB2APK_CALLBACK_URL').replace('/callback', '')}/icon/{os.environ.get('JOB_ID')}?token={os.environ.get('WEB2APK_CALLBACK_TOKEN')}"
+              
+          print(f"WEB2APK_SPLASH_LOGO={splash_logo}")
           PY
 
 
