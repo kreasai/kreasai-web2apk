@@ -19,6 +19,10 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.TextView
+import android.widget.LinearLayout
+import android.widget.ImageView
+import android.view.View
+import android.animation.ObjectAnimator
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -30,6 +34,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var swipeRefreshLayout: SwipeRefreshLayout
     private lateinit var webView: WebView
     private lateinit var offlineView: TextView
+    private lateinit var splashScreenContainer: LinearLayout
+    private lateinit var splashLogoImage: ImageView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,6 +44,8 @@ class MainActivity : AppCompatActivity() {
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout)
         webView = findViewById(R.id.webView)
         offlineView = findViewById(R.id.offlineView)
+        splashScreenContainer = findViewById(R.id.splashScreenContainer)
+        splashLogoImage = findViewById(R.id.splashLogoImage)
 
         setupWebView()
         setupSwipeRefresh()
@@ -46,11 +54,30 @@ class MainActivity : AppCompatActivity() {
         requestConfiguredPermissions()
 
         if (BuildConfig.ENABLE_SPLASH) {
-            window.decorView.setBackgroundColor(parseColorOrDefault(BuildConfig.SPLASH_BACKGROUND_COLOR))
+            val bgColor = parseColorOrDefault(BuildConfig.SPLASH_BACKGROUND_COLOR)
+            window.decorView.setBackgroundColor(bgColor)
+            splashScreenContainer.setBackgroundColor(bgColor)
+            splashScreenContainer.visibility = View.VISIBLE
+            
+            // Try load external splash URL if provided, else it falls back to XML default (ic_launcher)
+            // But since Github action already sets the ic_launcher to the splash logo, it works automatically!
+            
+            // Start Loading URL behind the scenes
+            loadInitialUrl()
+            
+            // Fade out splash after 2.5 seconds
             Handler(Looper.getMainLooper()).postDelayed({
-                loadInitialUrl()
-            }, 1400)
+                val fadeOut = ObjectAnimator.ofFloat(splashScreenContainer, "alpha", 1f, 0f)
+                fadeOut.duration = 500
+                fadeOut.addListener(object : android.animation.AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: android.animation.Animator) {
+                        splashScreenContainer.visibility = View.GONE
+                    }
+                })
+                fadeOut.start()
+            }, 2500)
         } else {
+            splashScreenContainer.visibility = View.GONE
             loadInitialUrl()
         }
     }

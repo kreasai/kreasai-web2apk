@@ -26,4 +26,25 @@
         android:textSize="16sp"
         android:visibility="gone" />
 
+    <!-- Splash Screen Overlay -->
+    <LinearLayout
+        android:id="@+id/splashScreenContainer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="#111827"
+        android:visibility="gone"
+        android:elevation="10dp">
+        
+        <ImageView
+            android:id="@+id/splashLogoImage"
+            android:layout_width="160dp"
+            android:layout_height="160dp"
+            android:src="@mipmap/ic_launcher"
+            android:adjustViewBounds="true"
+            android:scaleType="fitCenter" />
+            
+    </LinearLayout>
+
 </FrameLayout>
