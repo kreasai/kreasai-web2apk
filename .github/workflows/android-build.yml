@@ -116,6 +116,7 @@ jobs:
           fi
           python3 - <<'PY' >> "$GITHUB_ENV"
           import json
+          import re
           import os
 
           features = {}
@@ -141,7 +142,15 @@ jobs:
           print(f"WEB2APK_ENABLE_OFFLINE_PAGE={as_bool(features.get('enable_offline_page'), True)}")
           print(f"WEB2APK_ENABLE_BACK_NAVIGATION={as_bool(features.get('enable_back_navigation'), True)}")
           print(f"WEB2APK_ENABLE_SPLASH={as_bool(features.get('enable_splash'), False)}")
-          print(f"WEB2APK_SPLASH_BG={str(features.get('splash_background_color') or '#111827')}")
+          splash_bg = str(features.get('splash_background_color') or '#111827')
+          if not re.match(r'^#[0-9a-fA-F]{6}$', splash_bg):
+              splash_bg = '#111827'
+          print(f"WEB2APK_SPLASH_BG={splash_bg}")
+
+          icon_bg = str(features.get('splash_background_color') or '#ffffff')
+          if not re.match(r'^#[0-9a-fA-F]{6}$', icon_bg):
+              icon_bg = '#ffffff'
+          print(f"WEB2APK_ICON_BG={icon_bg}")
           
           # Logic: If splash logo URL is empty but we have an icon path, fallback to icon path
           splash_logo = str(features.get('splash_logo_url') or '')
@@ -160,41 +169,35 @@ jobs:
           if [ -n "$ICON_PATH" ]; then
             ICON_ENDPOINT="${WEB2APK_CALLBACK_URL%/callback}/icon/${JOB_ID}?token=${WEB2APK_CALLBACK_TOKEN}"
             curl -fL "$ICON_ENDPOINT" -o /tmp/raw_icon.png
-            
-            # Auto-convert to PNG and resize to a strict square (forcing 512x512 master)
-            # This ensures whatever format the user uploads, Android accepts it.
-            convert /tmp/raw_icon.png -background none -gravity center -resize 512x512^ -extent 512x512 -format png /tmp/master_icon.png
-            
-            # Create rounded version just in case standard launcher demands it
-            convert /tmp/master_icon.png \( +clone -alpha extract -draw "fill black polygon 0,0 0,512 512,512 512,0" -fill white -draw "circle 256,256 256,0" \) -alpha off -compose CopyOpacity -composite /tmp/master_icon_round.png
-            
-            # Create standard res folders
+
+            # Flatten transparency so Android file manager preview doesn't show black icon
+            convert /tmp/raw_icon.png -background "$WEB2APK_ICON_BG" -gravity center -resize 512x512^ -extent 512x512 -alpha remove -alpha off -format png /tmp/master_icon.png
+            cp /tmp/master_icon.png /tmp/master_icon_round.png
+
             mkdir -p android-template/app/src/main/res/mipmap-mdpi
             mkdir -p android-template/app/src/main/res/mipmap-hdpi
             mkdir -p android-template/app/src/main/res/mipmap-xhdpi
             mkdir -p android-template/app/src/main/res/mipmap-xxhdpi
             mkdir -p android-template/app/src/main/res/mipmap-xxxhdpi
-            
-            # Generate sizes
+
             convert /tmp/master_icon.png -resize 48x48 /tmp/ic_mdpi.png
             convert /tmp/master_icon.png -resize 72x72 /tmp/ic_hdpi.png
             convert /tmp/master_icon.png -resize 96x96 /tmp/ic_xhdpi.png
             convert /tmp/master_icon.png -resize 144x144 /tmp/ic_xxhdpi.png
             convert /tmp/master_icon.png -resize 192x192 /tmp/ic_xxxhdpi.png
-            
+
             convert /tmp/master_icon_round.png -resize 48x48 /tmp/ic_mdpi_round.png
             convert /tmp/master_icon_round.png -resize 72x72 /tmp/ic_hdpi_round.png
             convert /tmp/master_icon_round.png -resize 96x96 /tmp/ic_xhdpi_round.png
             convert /tmp/master_icon_round.png -resize 144x144 /tmp/ic_xxhdpi_round.png
             convert /tmp/master_icon_round.png -resize 192x192 /tmp/ic_xxxhdpi_round.png
-            
-            # Overwrite the default icon
+
             cp /tmp/ic_mdpi.png android-template/app/src/main/res/mipmap-mdpi/ic_launcher.png
             cp /tmp/ic_hdpi.png android-template/app/src/main/res/mipmap-hdpi/ic_launcher.png
             cp /tmp/ic_xhdpi.png android-template/app/src/main/res/mipmap-xhdpi/ic_launcher.png
             cp /tmp/ic_xxhdpi.png android-template/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
             cp /tmp/ic_xxxhdpi.png android-template/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
-            
+
             cp /tmp/ic_mdpi_round.png android-template/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
             cp /tmp/ic_hdpi_round.png android-template/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
             cp /tmp/ic_xhdpi_round.png android-template/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
@@ -212,7 +215,7 @@ jobs:
           mkdir -p android-template/app/src/main/res/mipmap-xxxhdpi
 
           if [ ! -f "android-template/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png" ]; then
-            convert -size 512x512 xc:"#111827" /tmp/fallback_icon.png
+            convert -size 512x512 xc:"$WEB2APK_ICON_BG" /tmp/fallback_icon.png
             convert /tmp/fallback_icon.png -resize 48x48 /tmp/ic_mdpi.png
             convert /tmp/fallback_icon.png -resize 72x72 /tmp/ic_hdpi.png
             convert /tmp/fallback_icon.png -resize 96x96 /tmp/ic_xhdpi.png
