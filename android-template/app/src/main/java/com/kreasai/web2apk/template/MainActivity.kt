@@ -21,7 +21,6 @@ import android.webkit.WebViewClient
 import android.widget.TextView
 import android.widget.LinearLayout
 import android.widget.ImageView
-import android.view.View
 import android.animation.ObjectAnimator
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
@@ -58,14 +57,10 @@ class MainActivity : AppCompatActivity() {
             window.decorView.setBackgroundColor(bgColor)
             splashScreenContainer.setBackgroundColor(bgColor)
             splashScreenContainer.visibility = View.VISIBLE
-            
-            // Try load external splash URL if provided, else it falls back to XML default (ic_launcher)
-            // But since Github action already sets the ic_launcher to the splash logo, it works automatically!
-            
-            // Start Loading URL behind the scenes
+            splashScreenContainer.alpha = 1f
+
             loadInitialUrl()
-            
-            // Fade out splash after 2.5 seconds
+
             Handler(Looper.getMainLooper()).postDelayed({
                 val fadeOut = ObjectAnimator.ofFloat(splashScreenContainer, "alpha", 1f, 0f)
                 fadeOut.duration = 500

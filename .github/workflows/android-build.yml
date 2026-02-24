@@ -18,6 +18,9 @@ on:
       icon_path:
         required: false
         type: string
+      splash_path:
+        required: false
+        type: string
       app_name:
         required: true
         type: string
@@ -52,6 +55,7 @@ jobs:
       VERSION_NAME: ${{ github.event.inputs.version_name }}
       VERSION_CODE: ${{ github.event.inputs.version_code }}
       ICON_PATH: ${{ github.event.inputs.icon_path }}
+      SPLASH_PATH: ${{ github.event.inputs.splash_path }}
       PERMISSIONS_JSON: ${{ github.event.inputs.permissions }}
       FEATURES_JSON: ${{ github.event.inputs.features }}
       WEB2APK_CALLBACK_URL: ${{ secrets.WEB2APK_CALLBACK_URL }}
@@ -82,6 +86,11 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Install ImageMagick
+        shell: bash
+        run: |
+          sudo apt-get update && sudo apt-get install -y imagemagick
+
       - name: Prepare web source and build flags
         shell: bash
         run: |
@@ -97,6 +106,14 @@ jobs:
           fi
 
           export WEB_URL
+          if [ -z "$WEB2APK_CALLBACK_URL" ]; then
+            echo "WEB2APK_CALLBACK_URL is not configured" >&2
+            exit 1
+          fi
+          if [ -z "$WEB2APK_CALLBACK_TOKEN" ]; then
+            echo "WEB2APK_CALLBACK_TOKEN is not configured" >&2
+            exit 1
+          fi
           python3 - <<'PY' >> "$GITHUB_ENV"
           import json
           import os
@@ -128,6 +145,8 @@ jobs:
           
           # Logic: If splash logo URL is empty but we have an icon path, fallback to icon path
           splash_logo = str(features.get('splash_logo_url') or '')
+          if not splash_logo and os.environ.get('SPLASH_PATH'):
+              splash_logo = f"{os.environ.get('WEB2APK_CALLBACK_URL').replace('/callback', '')}/splash/{os.environ.get('JOB_ID')}?token={os.environ.get('WEB2APK_CALLBACK_TOKEN')}"
           if not splash_logo and os.environ.get('ICON_PATH'):
               splash_logo = f"{os.environ.get('WEB2APK_CALLBACK_URL').replace('/callback', '')}/icon/{os.environ.get('JOB_ID')}?token={os.environ.get('WEB2APK_CALLBACK_TOKEN')}"
               
@@ -139,9 +158,6 @@ jobs:
         shell: bash
         run: |
           if [ -n "$ICON_PATH" ]; then
-            # Ensure ImageMagick is installed for resizing
-            sudo apt-get update && sudo apt-get install -y imagemagick
-            
             ICON_ENDPOINT="${WEB2APK_CALLBACK_URL%/callback}/icon/${JOB_ID}?token=${WEB2APK_CALLBACK_TOKEN}"
             curl -fL "$ICON_ENDPOINT" -o /tmp/raw_icon.png
             
@@ -185,6 +201,52 @@ jobs:
             cp /tmp/ic_xxhdpi_round.png android-template/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
             cp /tmp/ic_xxxhdpi_round.png android-template/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
           fi
+
+      - name: Ensure fallback launcher icons exist
+        shell: bash
+        run: |
+          mkdir -p android-template/app/src/main/res/mipmap-mdpi
+          mkdir -p android-template/app/src/main/res/mipmap-hdpi
+          mkdir -p android-template/app/src/main/res/mipmap-xhdpi
+          mkdir -p android-template/app/src/main/res/mipmap-xxhdpi
+          mkdir -p android-template/app/src/main/res/mipmap-xxxhdpi
+
+          if [ ! -f "android-template/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png" ]; then
+            convert -size 512x512 xc:"#111827" /tmp/fallback_icon.png
+            convert /tmp/fallback_icon.png -resize 48x48 /tmp/ic_mdpi.png
+            convert /tmp/fallback_icon.png -resize 72x72 /tmp/ic_hdpi.png
+            convert /tmp/fallback_icon.png -resize 96x96 /tmp/ic_xhdpi.png
+            convert /tmp/fallback_icon.png -resize 144x144 /tmp/ic_xxhdpi.png
+            convert /tmp/fallback_icon.png -resize 192x192 /tmp/ic_xxxhdpi.png
+
+            cp /tmp/ic_mdpi.png android-template/app/src/main/res/mipmap-mdpi/ic_launcher.png
+            cp /tmp/ic_hdpi.png android-template/app/src/main/res/mipmap-hdpi/ic_launcher.png
+            cp /tmp/ic_xhdpi.png android-template/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+            cp /tmp/ic_xxhdpi.png android-template/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+            cp /tmp/ic_xxxhdpi.png android-template/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+
+            cp /tmp/ic_mdpi.png android-template/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
+            cp /tmp/ic_hdpi.png android-template/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
+            cp /tmp/ic_xhdpi.png android-template/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
+            cp /tmp/ic_xxhdpi.png android-template/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
+            cp /tmp/ic_xxxhdpi.png android-template/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
+          fi
+
+      - name: Download and prepare splash logo
+        shell: bash
+        run: |
+          mkdir -p android-template/app/src/main/res/drawable
+
+          if [ -n "$WEB2APK_SPLASH_LOGO" ]; then
+            curl -fL "$WEB2APK_SPLASH_LOGO" -o /tmp/raw_splash.png
+            convert /tmp/raw_splash.png -background none -gravity center -resize 512x512^ -extent 512x512 -format png /tmp/splash_logo.png
+          elif [ -f /tmp/master_icon.png ]; then
+            cp /tmp/master_icon.png /tmp/splash_logo.png
+          else
+            convert -size 512x512 xc:none /tmp/splash_logo.png
+          fi
+
+          cp /tmp/splash_logo.png android-template/app/src/main/res/drawable/splash_logo.png
 
       - name: Build debug APK + unsigned release AAB
         shell: bash
