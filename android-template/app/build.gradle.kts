@@ -31,12 +31,12 @@ val splashLogoUrl = prop("web2apkSplashLogoUrl", "")
 
 android {
     namespace = "com.kreasai.web2apk.template"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = applicationIdValue
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 35
         versionCode = versionCodeValue
         versionName = versionNameValue
 
